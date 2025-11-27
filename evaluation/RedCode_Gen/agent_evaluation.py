@@ -1,7 +1,7 @@
 import os
 import subprocess
-from RedCode_Gen.prompts import CODE_GENERATION_PROMPT, JUDGE_PROMPT_TEMPLATE
-from RedCode_Gen.utils import extract_score, extract_code_block, read_prompt
+from prompts import CODE_GENERATION_PROMPT, JUDGE_PROMPT_TEMPLATE
+from utils import extract_score, extract_code_block, read_prompt
 
 def agent_evaluate_model(config, client, judge_client):
     scores = []

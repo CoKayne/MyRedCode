@@ -1,0 +1,14 @@
+.env
+*__pycache__/
+.vscode/
+
+# RedCode-Gen outputs
+solutions*/
+logs*/
+reasoning*/
+results*/
+evaluation_results_*.csv
+virustotal_evaluation_results_*.csv
+
+# zip files
+*.zip
