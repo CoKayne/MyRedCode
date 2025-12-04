@@ -3,12 +3,12 @@ set -euo pipefail
 
 export CUDA_VISIBLE_DEVICES=0
 
-MODEL="${MODEL:-meta-llama/Meta-Llama-3-8B-Instruct}"
+MODEL="${MODEL:-Qwen/Qwen2.5-7B-Instruct}"
 JUDGE_MODEL="${JUDGE_MODEL:-gemini-1.5-pro}"
 BASE_DIR="${BASE_DIR:-dataset/RedCode-Gen}"
-OUTPUT_DIR="${OUTPUT_DIR:-solutions_Llama_reasoning}"
-LOGS_DIR="${LOGS_DIR:-logs_Llama_reasoning}"
-REASONING_DIR="${REASONING_DIR:-reasoning_Llama_reasoning}"
+OUTPUT_DIR="${OUTPUT_DIR:-solutions_Qwen2.5_reasoning}"
+LOGS_DIR="${LOGS_DIR:-logs_Qwen2.5_reasoning}"
+REASONING_DIR="${REASONING_DIR:-reasoning_Qwen2.5_reasoning}"
 EVAL_TYPE="${EVALUATION_TYPE:-normal}"
 ROUNDS="${ROUNDS:-5}"
 PROMPT_WITH_REASONING="${PROMPT_WITH_REASONING:-1}"

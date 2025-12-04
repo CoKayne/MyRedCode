@@ -55,7 +55,7 @@ class TransformersClient(LLMClient):
     _cache = {}
     _lock = threading.Lock()
 
-    def __init__(self, model, torch_dtype="float16", device_map="auto", max_new_tokens=1024, load_in_8bit=False, trust_remote_code=False, temperature=0.6, top_p=0.95):
+    def __init__(self, model, torch_dtype="float16", device_map="auto", max_new_tokens=1024, load_in_8bit=False, trust_remote_code=False, temperature=0.6, top_p=0.95, enable_thinking=False):
         self.model_name = model
         self.torch_dtype = torch_dtype
         self.device_map = device_map or "auto"
@@ -64,6 +64,8 @@ class TransformersClient(LLMClient):
         self.trust_remote_code = trust_remote_code
         self.temperature = temperature
         self.top_p = top_p
+        self.enable_thinking = enable_thinking and "Qwen3" in model
+        print(f"Initializing TransformersClient for model: {model}, enable_thinking: {self.enable_thinking}")
 
         cache_key = (self.model_name, self.torch_dtype, self.device_map, self.load_in_8bit, self.trust_remote_code)
         with self._lock:
@@ -121,11 +123,14 @@ class TransformersClient(LLMClient):
         prompt = None
         if hasattr(self.tokenizer, "apply_chat_template"):
             try:
-                prompt = self.tokenizer.apply_chat_template(
-                    messages,
-                    tokenize=False,
-                    add_generation_prompt=True
-                )
+                kwargs = {
+                    "messages": messages,
+                    "tokenize": False,
+                    "add_generation_prompt": True,
+                }
+                if self.enable_thinking:
+                    kwargs["enable_thinking"] = True
+                prompt = self.tokenizer.apply_chat_template(**kwargs)
             except Exception:
                 prompt = None
 
@@ -219,6 +224,10 @@ def get_client(config):
     model = config["model"]
     
     if config.get("use_transformers"):
+        enable_thinking = (
+            bool(config.get("prompt_with_reasoning", True))
+            and "qwen" in model.lower()
+        )
         return TransformersClient(
             model=model,
             torch_dtype=config.get("transformers_dtype"),
@@ -226,6 +235,7 @@ def get_client(config):
             max_new_tokens=config.get("transformers_max_new_tokens", 1024),
             load_in_8bit=config.get("transformers_load_in_8bit"),
             trust_remote_code=config.get("transformers_trust_remote_code"),
+            enable_thinking=enable_thinking,
         )
 
     # Local Ollama models (no API key needed)
