@@ -224,10 +224,9 @@ def get_client(config):
     model = config["model"]
     
     if config.get("use_transformers"):
-        enable_thinking = (
-            bool(config.get("prompt_with_reasoning", True))
-            and "qwen" in model.lower()
-        )
+        # Use explicit enable_thinking from config
+        # The TransformersClient constructor will validate Qwen3 compatibility
+        enable_thinking = config.get("enable_thinking", False)
         return TransformersClient(
             model=model,
             torch_dtype=config.get("transformers_dtype"),
