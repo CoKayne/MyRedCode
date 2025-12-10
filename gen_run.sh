@@ -13,6 +13,11 @@ EVAL_TYPE="${EVALUATION_TYPE:-normal}"
 ROUNDS="${ROUNDS:-5}"
 PROMPT_WITH_REASONING="${PROMPT_WITH_REASONING:-1}"
 SKIP_JUDGING=1 # Default to skipping judging to save costs
+ENABLE_REFLECTION=1
+ENABLE_RETRIEVAL=0 # Set to 1 to enable retrieval-augmented defense
+RETRIEVAL_SIMILARITY_THRESHOLD="${RETRIEVAL_SIMILARITY_THRESHOLD:-0.5}"
+RETRIEVAL_MAX_RESULTS="${RETRIEVAL_MAX_RESULTS:-3}"
+RETRIEVAL_SCORE_THRESHOLD="${RETRIEVAL_SCORE_THRESHOLD:-5}"
 
 ARGS=(
   --model "$MODEL"
@@ -36,6 +41,17 @@ fi
 
 if [[ "${USE_VIRUSTOTAL:-0}" =~ ^(1|true|yes|on)$ ]]; then
   ARGS+=(--use_virustotal)
+fi
+
+if [[ "${ENABLE_REFLECTION:-0}" =~ ^(1|true|yes|on)$ ]]; then
+  ARGS+=(--enable_reflection)
+fi
+
+if [[ "${ENABLE_RETRIEVAL:-0}" =~ ^(1|true|yes|on)$ ]]; then
+  ARGS+=(--enable_retrieval)
+  ARGS+=(--retrieval_similarity_threshold "$RETRIEVAL_SIMILARITY_THRESHOLD")
+  ARGS+=(--retrieval_max_results "$RETRIEVAL_MAX_RESULTS")
+  ARGS+=(--retrieval_score_threshold "$RETRIEVAL_SCORE_THRESHOLD")
 fi
 
 python evaluation/RedCode_Gen/main.py "${ARGS[@]}" "$@"
