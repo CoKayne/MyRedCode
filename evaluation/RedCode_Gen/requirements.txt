@@ -17,3 +17,8 @@ accelerate
 safetensors
 bitsandbytes
 anthropic
+# Reflection dependencies
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+# Optional: for automatic GPU selection
+gputil
