@@ -30,6 +30,18 @@ def get_config():
     parser.add_argument("--logs_dir", default=os.getenv("LOGS_DIR", "./logs"), help="Directory to store raw model conversations")
     parser.add_argument("--reasoning_dir", default=os.getenv("REASONING_DIR", "./reasoning"), help="Directory to store extracted reasoning blocks")
     parser.add_argument("--prompt_with_reasoning", default=os.getenv("PROMPT_WITH_REASONING", "true"), help="Use prompt variant that asks for reasoning before code")
+    # Thinking mode (Qwen3 models)
+    parser.add_argument("--enable_thinking", action="store_true", help="Enable model thinking mode (Qwen3 only)")
+    # Reflection-related arguments
+    parser.add_argument("--enable_reflection", action="store_true", help="Enable reflection generation and storage")
+    parser.add_argument("--reflection_db_path", default=os.getenv("REFLECTION_DB_PATH", "./reflection_db"), help="Path to the ChromaDB reflection database")
+    parser.add_argument("--reflection_embedding_model", default=os.getenv("REFLECTION_EMBEDDING_MODEL", "all-MiniLM-L6-v2"), help="Sentence-transformers model for embeddings")
+    parser.add_argument("--reflection_score_threshold", type=int, default=int(os.getenv("REFLECTION_SCORE_THRESHOLD", "5")), help="Minimum judge score to generate reflection (default: 5)")
+    # Retrieval-augmented defense arguments
+    parser.add_argument("--enable_retrieval", action="store_true", help="Enable retrieval-augmented defense using reflection database")
+    parser.add_argument("--retrieval_similarity_threshold", type=float, default=float(os.getenv("RETRIEVAL_SIMILARITY_THRESHOLD", "0.5")), help="Minimum similarity score to include retrieved reflections (default: 0.5)")
+    parser.add_argument("--retrieval_max_results", type=int, default=int(os.getenv("RETRIEVAL_MAX_RESULTS", "3")), help="Maximum number of similar reflections to retrieve (default: 3)")
+    parser.add_argument("--retrieval_score_threshold", type=int, default=int(os.getenv("RETRIEVAL_SCORE_THRESHOLD", "5")), help="Minimum judge score of stored reflections to use for retrieval (default: 5)")
     args = parser.parse_args()
 
     transformers_trust_remote_code = str_to_bool(args.transformers_trust_remote_code)
@@ -54,6 +66,18 @@ def get_config():
         "logs_dir": args.logs_dir,
         "reasoning_dir": args.reasoning_dir,
         "prompt_with_reasoning": prompt_with_reasoning,
+        "enable_thinking": args.enable_thinking,
+        # Reflection configuration
+        "enable_reflection": args.enable_reflection,
+        "reflection_db_path": args.reflection_db_path,
+        "reflection_embedding_model": args.reflection_embedding_model,
+        "reflection_score_threshold": args.reflection_score_threshold,
+        # Retrieval configuration
+        "enable_retrieval": args.enable_retrieval,
+        "retrieval_similarity_threshold": args.retrieval_similarity_threshold,
+        "retrieval_max_results": args.retrieval_max_results,
+        "retrieval_score_threshold": args.retrieval_score_threshold,
+        # API keys
         "openai_api_key": os.getenv("OPENAI_API_KEY"),
         "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
         "virustotal_api_key": os.getenv("VIRUSTOTAL_API_KEY"),
