@@ -1,5 +1,6 @@
 import os
 import csv
+import json
 from pathlib import Path
 from clients import get_client
 from prompts import *
@@ -11,6 +12,7 @@ from reflection_utils import (
     retrieve_security_warnings, build_retrieval_augmented_prompt
 )
 from reflection_db import ReflectionDatabase
+from dataset_split import is_train_file, is_test_file
 
 def extract_reasoning_block(response_text):
     if not isinstance(response_text, str):
@@ -138,11 +140,27 @@ def normal_evaluate_model(config, client, judge_client, reflection_client=None, 
     retrieval_max_results = config.get("retrieval_max_results", 3)
     retrieval_score_threshold = config.get("retrieval_score_threshold", 5)
 
+    # Dataset split configuration
+    split_mode = config.get("split_mode", "none")
+    record_retrieval = config.get("record_retrieval", False)
+    retrieval_log_path = config.get("retrieval_log_path", "./retrieval_analysis")
+
+    # Retrieval tracking for analysis
+    retrieval_records = []
+
+    if split_mode != "none":
+        print(f"Split mode: {split_mode} (using {'indices 1-10' if split_mode == 'train' else 'indices 11-20'})")
+
     for family in os.listdir(config["base_dir"]):
         family_dir = os.path.join(config["base_dir"], family)
         if os.path.isdir(family_dir):
             for file_name in os.listdir(family_dir):
                 if file_name.endswith(".py"):
+                    # Apply split filtering
+                    if split_mode == "train" and not is_train_file(file_name):
+                        continue
+                    if split_mode == "test" and not is_test_file(file_name):
+                        continue
                     file_path = os.path.join(family_dir, file_name)
                     user_request = prompt_template + read_prompt(file_path)
 
@@ -170,6 +188,29 @@ def normal_evaluate_model(config, client, judge_client, reflection_client=None, 
                                     base_system_prompt
                                 )
                                 print(f"  Retrieval: Found {len(retrieved_reflections)} similar patterns for {family}/{file_name}")
+
+                            # Record retrieval for analysis if enabled
+                            if record_retrieval and retrieved_reflections:
+                                same_category_count = sum(
+                                    1 for r in retrieved_reflections
+                                    if r.get("metadata", {}).get("family") == family
+                                )
+                                cross_category_count = len(retrieved_reflections) - same_category_count
+                                retrieval_records.append({
+                                    "query_file": file_name,
+                                    "query_category": family,
+                                    "retrieved": [
+                                        {
+                                            "id": r.get("id", "unknown"),
+                                            "family": r.get("metadata", {}).get("family", "unknown"),
+                                            "file_name": r.get("metadata", {}).get("file_name", "unknown"),
+                                            "similarity": r.get("similarity", 0)
+                                        }
+                                        for r in retrieved_reflections
+                                    ],
+                                    "same_category_count": same_category_count,
+                                    "cross_category_count": cross_category_count
+                                })
                         except Exception as e:
                             print(f"  Warning: Retrieval failed for {family}/{file_name}: {e}")
 
@@ -279,5 +320,63 @@ def normal_evaluate_model(config, client, judge_client, reflection_client=None, 
     if reflection_db is not None:
         stats = reflection_db.get_collection_stats()
         print(f"\nReflection Database Stats: {stats['total_reflections']} reflections stored")
+
+    # Save retrieval analysis if recording was enabled
+    if record_retrieval and retrieval_records:
+        # Ensure output directory exists
+        os.makedirs(os.path.dirname(retrieval_log_path) if os.path.dirname(retrieval_log_path) else ".", exist_ok=True)
+
+        # Save JSON
+        json_path = f"{retrieval_log_path}.json"
+        with open(json_path, 'w') as f:
+            json.dump({
+                "config": {
+                    "split_mode": split_mode,
+                    "retrieval_similarity_threshold": retrieval_similarity_threshold,
+                    "retrieval_max_results": retrieval_max_results,
+                    "retrieval_db_path": config.get("reflection_db_path", "unknown")
+                },
+                "records": retrieval_records
+            }, f, indent=2)
+
+        # Save CSV summary
+        csv_path = f"{retrieval_log_path}.csv"
+        with open(csv_path, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "query_file", "query_category", "num_retrieved",
+                "same_category_count", "cross_category_count",
+                "same_category_pct", "retrieved_categories"
+            ])
+            for record in retrieval_records:
+                num_retrieved = len(record["retrieved"])
+                same_pct = (record["same_category_count"] / num_retrieved * 100) if num_retrieved > 0 else 0
+                retrieved_cats = ",".join(set(r["family"] for r in record["retrieved"]))
+                writer.writerow([
+                    record["query_file"],
+                    record["query_category"],
+                    num_retrieved,
+                    record["same_category_count"],
+                    record["cross_category_count"],
+                    f"{same_pct:.1f}%",
+                    retrieved_cats
+                ])
+
+        # Print summary
+        total_retrievals = sum(len(r["retrieved"]) for r in retrieval_records)
+        total_same = sum(r["same_category_count"] for r in retrieval_records)
+        total_cross = sum(r["cross_category_count"] for r in retrieval_records)
+        same_pct = (total_same / total_retrievals * 100) if total_retrievals > 0 else 0
+
+        print(f"\n{'=' * 60}")
+        print("RETRIEVAL ANALYSIS SUMMARY")
+        print(f"{'=' * 60}")
+        print(f"Total queries with retrievals: {len(retrieval_records)}")
+        print(f"Total retrieved entries: {total_retrievals}")
+        print(f"Same-category retrievals: {total_same} ({same_pct:.1f}%)")
+        print(f"Cross-category retrievals: {total_cross} ({100 - same_pct:.1f}%)")
+        print(f"{'=' * 60}")
+        print(f"Saved JSON: {json_path}")
+        print(f"Saved CSV: {csv_path}")
 
     return scores, zero_count, ten_count, results

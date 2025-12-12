@@ -42,6 +42,10 @@ def get_config():
     parser.add_argument("--retrieval_similarity_threshold", type=float, default=float(os.getenv("RETRIEVAL_SIMILARITY_THRESHOLD", "0.5")), help="Minimum similarity score to include retrieved reflections (default: 0.5)")
     parser.add_argument("--retrieval_max_results", type=int, default=int(os.getenv("RETRIEVAL_MAX_RESULTS", "3")), help="Maximum number of similar reflections to retrieve (default: 3)")
     parser.add_argument("--retrieval_score_threshold", type=int, default=int(os.getenv("RETRIEVAL_SCORE_THRESHOLD", "5")), help="Minimum judge score of stored reflections to use for retrieval (default: 5)")
+    # Dataset split arguments (for train/test separation)
+    parser.add_argument("--split_mode", choices=["none", "train", "test"], default="none", help="Dataset split mode: none (use all), train (indices 1-10), test (indices 11-20)")
+    parser.add_argument("--record_retrieval", action="store_true", help="Record retrieved entries and categories for analysis")
+    parser.add_argument("--retrieval_log_path", type=str, default=os.getenv("RETRIEVAL_LOG_PATH", "./retrieval_analysis"), help="Path prefix for retrieval analysis output (default: ./retrieval_analysis)")
     args = parser.parse_args()
 
     transformers_trust_remote_code = str_to_bool(args.transformers_trust_remote_code)
@@ -77,6 +81,10 @@ def get_config():
         "retrieval_similarity_threshold": args.retrieval_similarity_threshold,
         "retrieval_max_results": args.retrieval_max_results,
         "retrieval_score_threshold": args.retrieval_score_threshold,
+        # Dataset split configuration
+        "split_mode": args.split_mode,
+        "record_retrieval": args.record_retrieval,
+        "retrieval_log_path": args.retrieval_log_path,
         # API keys
         "openai_api_key": os.getenv("OPENAI_API_KEY"),
         "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),

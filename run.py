@@ -439,6 +439,100 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         "retrieval_max_results": 3,
         "enable_thinking": False,
     },
+
+    # =========================================================================
+    # Split Experiment Presets (Train/Test Separation)
+    # =========================================================================
+    # Qwen with Llama reflections (cross-model)
+    "qwen-7b-retrieval-split-llama": {
+        "description": "Qwen 2.5 7B with Llama-generated reflections (test split)",
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "use_transformers": True,
+        "prompt_with_reasoning": True,
+        "enable_reflection": False,
+        "enable_retrieval": True,
+        "retrieval_similarity_threshold": 0.5,
+        "retrieval_max_results": 3,
+        "enable_thinking": False,
+        "split_mode": "test",
+        "record_retrieval": True,
+        "reflection_db_path": "./reflection_db_split/llama_reasoning",
+    },
+    # Qwen with Qwen reflections (same-model)
+    "qwen-7b-retrieval-split-qwen": {
+        "description": "Qwen 2.5 7B with Qwen-generated reflections (test split)",
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "use_transformers": True,
+        "prompt_with_reasoning": True,
+        "enable_reflection": False,
+        "enable_retrieval": True,
+        "retrieval_similarity_threshold": 0.5,
+        "retrieval_max_results": 3,
+        "enable_thinking": False,
+        "split_mode": "test",
+        "record_retrieval": True,
+        "reflection_db_path": "./reflection_db_split/qwen_reasoning",
+    },
+    # Llama with Llama reflections (same-model)
+    "llama-8b-retrieval-split-llama": {
+        "description": "Llama 3.1 8B with Llama-generated reflections (test split)",
+        "model": "meta-llama/Llama-3.1-8B-Instruct",
+        "use_transformers": True,
+        "prompt_with_reasoning": True,
+        "enable_reflection": False,
+        "enable_retrieval": True,
+        "retrieval_similarity_threshold": 0.5,
+        "retrieval_max_results": 3,
+        "enable_thinking": False,
+        "split_mode": "test",
+        "record_retrieval": True,
+        "reflection_db_path": "./reflection_db_split/llama_reasoning",
+    },
+    # Llama with Qwen reflections (cross-model)
+    "llama-8b-retrieval-split-qwen": {
+        "description": "Llama 3.1 8B with Qwen-generated reflections (test split)",
+        "model": "meta-llama/Llama-3.1-8B-Instruct",
+        "use_transformers": True,
+        "prompt_with_reasoning": True,
+        "enable_reflection": False,
+        "enable_retrieval": True,
+        "retrieval_similarity_threshold": 0.5,
+        "retrieval_max_results": 3,
+        "enable_thinking": False,
+        "split_mode": "test",
+        "record_retrieval": True,
+        "reflection_db_path": "./reflection_db_split/qwen_reasoning",
+    },
+    # DeepSeek with Llama reflections (cross-model)
+    "deepseek-7b-retrieval-split-llama": {
+        "description": "DeepSeek 7B with Llama-generated reflections (test split)",
+        "model": "deepseek-ai/deepseek-coder-7b-instruct-v1.5",
+        "use_transformers": True,
+        "prompt_with_reasoning": True,
+        "enable_reflection": False,
+        "enable_retrieval": True,
+        "retrieval_similarity_threshold": 0.5,
+        "retrieval_max_results": 3,
+        "enable_thinking": False,
+        "split_mode": "test",
+        "record_retrieval": True,
+        "reflection_db_path": "./reflection_db_split/llama_reasoning",
+    },
+    # DeepSeek with DeepSeek reflections (same-model)
+    "deepseek-7b-retrieval-split-deepseek": {
+        "description": "DeepSeek 7B with DeepSeek-generated reflections (test split)",
+        "model": "deepseek-ai/deepseek-coder-7b-instruct-v1.5",
+        "use_transformers": True,
+        "prompt_with_reasoning": True,
+        "enable_reflection": False,
+        "enable_retrieval": True,
+        "retrieval_similarity_threshold": 0.5,
+        "retrieval_max_results": 3,
+        "enable_thinking": False,
+        "split_mode": "test",
+        "record_retrieval": True,
+        "reflection_db_path": "./reflection_db_split/deepseek_reasoning",
+    },
 }
 
 
@@ -478,6 +572,10 @@ def get_experiment_dir(base_output: str, experiment_name: str, model: str, confi
 
     if not config.get("enable_retrieval") and not config.get("enable_reflection"):
         config_parts.append("baseline")
+
+    # Split mode indicator
+    if config.get("split_mode") and config["split_mode"] != "none":
+        config_parts.append(f"split_{config['split_mode']}")
 
     config_str = "_".join(config_parts)
 
@@ -618,6 +716,14 @@ Examples:
     parser.add_argument("--retrieval-score-threshold", type=int, default=5,
                         help="Minimum score of stored reflections to use")
 
+    # Split mode settings (for train/test separation experiments)
+    parser.add_argument("--split-mode", choices=["none", "train", "test"], default=None,
+                        help="Dataset split mode: none (use all), train (indices 1-10), test (indices 11-20)")
+    parser.add_argument("--record-retrieval", action="store_true", default=None,
+                        help="Record retrieved entries and categories for analysis")
+    parser.add_argument("--retrieval-log-path", type=str, default=None,
+                        help="Path prefix for retrieval analysis output")
+
     # Paths
     parser.add_argument("--base-dir", type=str, default="./dataset/RedCode-Gen",
                         help="Directory containing test prompts")
@@ -691,6 +797,21 @@ def resolve_config(args: argparse.Namespace) -> Dict[str, Any]:
         config["retrieval_similarity_threshold"] = args.retrieval_similarity
         config["retrieval_max_results"] = args.retrieval_max_results
         config["retrieval_score_threshold"] = args.retrieval_score_threshold
+
+    # Split mode settings
+    if args.split_mode is not None:
+        config["split_mode"] = args.split_mode
+    elif "split_mode" not in config:
+        config["split_mode"] = "none"
+
+    if args.record_retrieval is not None:
+        config["record_retrieval"] = args.record_retrieval
+    elif "record_retrieval" not in config:
+        config["record_retrieval"] = False
+
+    if args.retrieval_log_path is not None:
+        config["retrieval_log_path"] = args.retrieval_log_path
+    # retrieval_log_path will be set later based on experiment dir if not specified
 
     # Other settings
     config["judge_model"] = args.judge_model
@@ -779,6 +900,18 @@ def build_command(config: Dict[str, Any], dirs: Dict[str, Path]) -> List[str]:
             "--retrieval_score_threshold", str(config.get("retrieval_score_threshold", 5)),
         ])
 
+    # Split mode settings
+    if config.get("split_mode") and config["split_mode"] != "none":
+        cmd.extend(["--split_mode", config["split_mode"]])
+
+    if config.get("record_retrieval"):
+        cmd.append("--record_retrieval")
+        # Set retrieval log path to experiment directory if not specified
+        retrieval_log_path = config.get("retrieval_log_path")
+        if not retrieval_log_path:
+            retrieval_log_path = str(dirs["root"] / "retrieval_analysis")
+        cmd.extend(["--retrieval_log_path", retrieval_log_path])
+
     return cmd
 
 
@@ -805,6 +938,11 @@ def run_experiment(args: argparse.Namespace, config: Dict[str, Any], preset_name
     if config.get("enable_retrieval"):
         print(f"  - Similarity threshold: {config.get('retrieval_similarity_threshold', 0.5)}")
         print(f"  - Max results: {config.get('retrieval_max_results', 3)}")
+        print(f"  - Database: {config.get('reflection_db_path', './reflection_db')}")
+    if config.get("split_mode") and config["split_mode"] != "none":
+        print(f"Split mode: {config['split_mode']} (indices {'1-10' if config['split_mode'] == 'train' else '11-20'})")
+    if config.get("record_retrieval"):
+        print(f"Record retrieval: enabled")
     print("=" * 70)
 
     # Save configuration
