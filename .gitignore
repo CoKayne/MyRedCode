@@ -12,3 +12,6 @@ virustotal_evaluation_results_*.csv
 
 # zip files
 *.zip
+
+# claude config
+.claude/
